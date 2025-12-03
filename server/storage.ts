@@ -1,37 +1,91 @@
-import { type User, type InsertUser } from "@shared/schema";
+import type { Project, InsertProject, ContentDraft, InsertContentDraft } from "@shared/schema";
 import { randomUUID } from "crypto";
 
-// modify the interface with any CRUD methods
-// you might need
-
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // Project operations
+  getProjects(): Promise<Project[]>;
+  getProject(id: string): Promise<Project | undefined>;
+  createProject(project: InsertProject): Promise<Project>;
+  deleteProject(id: string): Promise<boolean>;
+
+  // Draft operations
+  getDrafts(projectId: string): Promise<ContentDraft[]>;
+  getDraft(id: string): Promise<ContentDraft | undefined>;
+  createDraft(draft: InsertContentDraft): Promise<ContentDraft>;
+  deleteDraft(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private projects: Map<string, Project>;
+  private drafts: Map<string, ContentDraft>;
 
   constructor() {
-    this.users = new Map();
+    this.projects = new Map();
+    this.drafts = new Map();
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+  // Project operations
+  async getProjects(): Promise<Project[]> {
+    return Array.from(this.projects.values()).sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async getProject(id: string): Promise<Project | undefined> {
+    return this.projects.get(id);
+  }
+
+  async createProject(insertProject: InsertProject): Promise<Project> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const now = new Date().toISOString();
+    const project: Project = {
+      ...insertProject,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.projects.set(id, project);
+    return project;
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    // Also delete associated drafts
+    const draftIds = Array.from(this.drafts.values())
+      .filter((d) => d.projectId === id)
+      .map((d) => d.id);
+    
+    for (const draftId of draftIds) {
+      this.drafts.delete(draftId);
+    }
+    
+    return this.projects.delete(id);
+  }
+
+  // Draft operations
+  async getDrafts(projectId: string): Promise<ContentDraft[]> {
+    return Array.from(this.drafts.values())
+      .filter((d) => d.projectId === projectId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getDraft(id: string): Promise<ContentDraft | undefined> {
+    return this.drafts.get(id);
+  }
+
+  async createDraft(insertDraft: InsertContentDraft): Promise<ContentDraft> {
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    const draft: ContentDraft = {
+      ...insertDraft,
+      id,
+      createdAt: now,
+    };
+    this.drafts.set(id, draft);
+    return draft;
+  }
+
+  async deleteDraft(id: string): Promise<boolean> {
+    return this.drafts.delete(id);
   }
 }
 
