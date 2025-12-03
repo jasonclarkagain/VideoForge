@@ -10,13 +10,17 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Workspace } from "@/pages/workspace";
+import { ContentCalendar } from "@/pages/calendar";
+import { BatchGenerate } from "@/pages/batch-generate";
+import { ABTesting } from "@/pages/ab-testing";
+import { ExportPage } from "@/pages/export";
 import { useToast } from "@/hooks/use-toast";
 import NotFound from "@/pages/not-found";
 import type { Project } from "@shared/schema";
 
 function MainLayout() {
   const { toast } = useToast();
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
 
   // Fetch projects
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
@@ -48,7 +52,7 @@ function MainLayout() {
 
   // Delete project mutation
   const deleteProjectMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/projects/${id}`);
       return id;
     },
@@ -75,7 +79,7 @@ function MainLayout() {
     createProjectMutation.mutate({ name, description });
   };
 
-  const handleDeleteProject = (id: string) => {
+  const handleDeleteProject = (id: number) => {
     deleteProjectMutation.mutate(id);
   };
 
@@ -104,6 +108,18 @@ function MainLayout() {
             <Switch>
               <Route path="/">
                 <Workspace selectedProjectId={selectedProjectId} projects={projects} />
+              </Route>
+              <Route path="/calendar">
+                <ContentCalendar selectedProjectId={selectedProjectId} projects={projects} />
+              </Route>
+              <Route path="/batch">
+                <BatchGenerate />
+              </Route>
+              <Route path="/ab-testing">
+                <ABTesting />
+              </Route>
+              <Route path="/export">
+                <ExportPage selectedProjectId={selectedProjectId} projects={projects} />
               </Route>
               <Route component={NotFound} />
             </Switch>

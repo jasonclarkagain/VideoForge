@@ -25,7 +25,7 @@ import type {
 } from "@shared/schema";
 
 interface WorkspaceProps {
-  selectedProjectId: string | null;
+  selectedProjectId: number | null;
   projects: Project[];
 }
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Plus, FolderOpen, Trash2, Video, Sparkles } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { Plus, FolderOpen, Trash2, Video, Sparkles, FileText, Calendar, BarChart3, Download, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,10 +30,10 @@ import type { Project } from "@shared/schema";
 
 interface AppSidebarProps {
   projects: Project[];
-  selectedProjectId: string | null;
-  onSelectProject: (id: string | null) => void;
+  selectedProjectId: number | null;
+  onSelectProject: (id: number | null) => void;
   onCreateProject: (name: string, description?: string) => void;
-  onDeleteProject: (id: string) => void;
+  onDeleteProject: (id: number) => void;
   isLoading?: boolean;
 }
 
@@ -44,9 +45,18 @@ export function AppSidebar({
   onDeleteProject,
   isLoading,
 }: AppSidebarProps) {
+  const [location] = useLocation();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
+
+  const navItems = [
+    { path: "/", label: "Workspace", icon: FileText },
+    { path: "/calendar", label: "Calendar", icon: Calendar },
+    { path: "/batch", label: "Batch Generate", icon: Layers },
+    { path: "/ab-testing", label: "A/B Testing", icon: BarChart3 },
+    { path: "/export", label: "Export", icon: Download },
+  ];
 
   const handleCreateProject = () => {
     if (newProjectName.trim()) {
@@ -72,6 +82,30 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
+        {/* Navigation */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location === item.path;
+                return (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton asChild isActive={isActive}>
+                      <Link href={item.path} data-testid={`nav-${item.label.toLowerCase().replace(" ", "-")}`}>
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Projects */}
         <SidebarGroup>
           <div className="flex items-center justify-between px-2">
             <SidebarGroupLabel>Projects</SidebarGroupLabel>

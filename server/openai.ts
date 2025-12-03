@@ -5,13 +5,16 @@ import type {
   GenerateDescriptionRequest,
   GenerateThumbnailRequest,
   GenerateIdeasRequest,
+  GenerateBatchRequest,
+  GenerateABTestRequest,
   GeneratedScript,
   GeneratedTitle,
   GeneratedDescription,
   GeneratedThumbnail,
   GeneratedIdea,
+  BatchGenerationResult,
+  ABTestResult,
   Platform,
-  platformLimits,
 } from "@shared/schema";
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own API key.
@@ -242,4 +245,91 @@ Difficulty levels:
 
   const content = response.choices[0]?.message?.content || '{"ideas":[]}';
   return JSON.parse(content) as { ideas: GeneratedIdea[] };
+}
+
+export async function generateBatch(
+  request: GenerateBatchRequest
+): Promise<{ results: BatchGenerationResult[] }> {
+  const results: BatchGenerationResult[] = [];
+
+  for (const topic of request.topics) {
+    const result: BatchGenerationResult = { topic };
+
+    if (request.generateTitles) {
+      const titlesResponse = await generateTitles({
+        topic,
+        tone: request.tone,
+        platforms: request.platforms,
+        count: 3,
+      });
+      result.titles = titlesResponse.titles;
+    }
+
+    if (request.generateDescriptions) {
+      const descriptionsResponse = await generateDescriptions({
+        title: topic,
+        topic,
+        tone: request.tone,
+        platforms: request.platforms,
+        includeHashtags: true,
+        includeCallToAction: true,
+      });
+      result.descriptions = descriptionsResponse.descriptions;
+    }
+
+    if (request.generateThumbnails) {
+      const thumbnailsResponse = await generateThumbnails({
+        topic,
+        count: 2,
+      });
+      result.thumbnails = thumbnailsResponse.thumbnails;
+    }
+
+    results.push(result);
+  }
+
+  return { results };
+}
+
+export async function generateABTest(
+  request: GenerateABTestRequest
+): Promise<ABTestResult> {
+  const prompt = `Generate A/B test variants for ${request.testType} optimization:
+Topic: ${request.topic}
+Tone: ${request.tone}
+Target Platforms: ${request.platforms.join(", ")}
+Number of variants: ${request.variantCount}
+
+Create ${request.variantCount} distinct ${request.testType} variants that can be A/B tested. Each variant should:
+- Target a different psychological angle or audience segment
+- Have a clear hypothesis for why it might perform better
+- Be measurably different from other variants
+
+Response format (JSON):
+{
+  "testType": "${request.testType}",
+  "variants": [
+    {
+      "variant": "A",
+      "content": ${request.testType === "titles" 
+        ? '{ "title": "Title text", "characterCount": 45, "seoScore": 85 }' 
+        : '{ "concept": "Design description", "textOverlay": "Text", "colorScheme": "Colors", "elements": ["Element1", "Element2"] }'},
+      "hypothesis": "Why this variant might perform better",
+      "targetAudience": "Specific audience segment this targets"
+    }
+  ],
+  "recommendation": "Overall recommendation for running this A/B test, including suggested test duration and sample size"
+}
+
+Name variants A, B, C, D, E based on variantCount.`;
+
+  const response = await openai.chat.completions.create({
+    model: MODEL,
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+    max_completion_tokens: 4096,
+  });
+
+  const content = response.choices[0]?.message?.content || '{"testType":"titles","variants":[],"recommendation":""}';
+  return JSON.parse(content) as ABTestResult;
 }
